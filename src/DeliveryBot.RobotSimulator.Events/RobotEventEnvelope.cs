@@ -1,6 +1,6 @@
-namespace DeliveryBot.RobotSimulator.Events;
+﻿namespace DeliveryBot.RobotSimulator.Events;
 
-public sealed record RobotEventEnvelope<TData>
+public sealed record RobotEventEnvelope
 {
     public required string EventId { get; init; }
     public required string EventType { get; init; }
@@ -9,15 +9,15 @@ public sealed record RobotEventEnvelope<TData>
     public string? BotId { get; init; }
     public required string Source { get; init; }
     public bool IsSimulated { get; init; } = true;
-    public required TData Data { get; init; }
+    public required object Data { get; init; }
 
-    public static RobotEventEnvelope<TData> Create(
+    public static RobotEventEnvelope Create(
         string eventType,
-        TData data,
+        object data,
         string? botId = null,
         string schemaVersion = "1.0")
     {
-        return new RobotEventEnvelope<TData>
+        return new RobotEventEnvelope
         {
             EventId = Guid.NewGuid().ToString("N"),
             EventType = eventType,
