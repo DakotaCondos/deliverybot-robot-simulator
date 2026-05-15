@@ -4,6 +4,7 @@ using DeliveryBot.RobotSimulator.Core.Orders;
 using DeliveryBot.RobotSimulator.Core.Simulation;
 using DeliveryBot.RobotSimulator.Events;
 using DeliveryBot.RobotSimulator.Infrastructure.Events;
+using DeliveryBot.RobotSimulator.Infrastructure.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,8 +21,7 @@ builder.Services.AddSingleton(simulationOptions);
 
 builder.Services.AddSingleton<BotFleet>();
 
-builder.Services.AddSingleton<RecentRobotEventStore>();
-builder.Services.AddSingleton<IRobotEventPublisher, LocalRobotEventPublisher>();
+builder.Services.AddRobotEventTransport(builder.Configuration);
 
 builder.Services.AddHostedService<SimulationWorker>();
 
