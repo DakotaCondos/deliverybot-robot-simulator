@@ -15,12 +15,15 @@ public sealed class SimulatedBot
     private DateTimeOffset _lastTelemetryAt = DateTimeOffset.MinValue;
 
     public string BotId { get; }
-    public string Model { get; }
+    public string Model { get; private set; }
     public BotStatus Status { get; private set; }
     public GeoLocation CurrentLocation { get; private set; }
     public double PowerLevel { get; private set; }
     public double ExternalTemperature { get; private set; }
     public double InternalStorageTemperature { get; private set; }
+    public bool HasActiveOrQueuedOrders => _activeOrder is not null || _queuedOrders.Count > 0;
+    public string? ActiveOrderId => _activeOrder?.OrderId;
+    public int QueuedOrderCount => _queuedOrders.Count;
 
     public SimulatedBot(
         string botId,
@@ -52,6 +55,36 @@ public sealed class SimulatedBot
             _stock.Values.ToList(),
             _activeOrder?.OrderId,
             _queuedOrders.Count);
+    }
+
+    public BotSnapshot Update(UpdateBotRequest request)
+    {
+        if (!string.IsNullOrWhiteSpace(request.Model))
+        {
+            Model = request.Model;
+        }
+
+        if (request.CurrentLocation is not null)
+        {
+            CurrentLocation = request.CurrentLocation;
+        }
+
+        if (request.PowerLevel is not null)
+        {
+            PowerLevel = Math.Clamp(request.PowerLevel.Value, 0, 100);
+        }
+
+        if (request.ExternalTemperature is not null)
+        {
+            ExternalTemperature = request.ExternalTemperature.Value;
+        }
+
+        if (request.InternalStorageTemperature is not null)
+        {
+            InternalStorageTemperature = request.InternalStorageTemperature.Value;
+        }
+
+        return ToSnapshot();
     }
 
     public BotOrderAssignmentResult AssignOrder(OrderAssignment assignment)

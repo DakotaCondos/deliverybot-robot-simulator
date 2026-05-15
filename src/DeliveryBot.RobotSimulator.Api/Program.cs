@@ -68,6 +68,146 @@ app.MapGet("/bots/{botId}", (string botId, BotFleet botFleet) =>
         : Results.Ok(bot);
 });
 
+app.MapPost("/bots", async (
+    CreateBotRequest request,
+    BotFleet botFleet,
+    SimulatorOptions simulatorOptions,
+    IRobotEventPublisher eventPublisher,
+    CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(request.BotId))
+    {
+        return Results.BadRequest(new
+        {
+            message = "BotId is required."
+        });
+    }
+
+    var model = string.IsNullOrWhiteSpace(request.Model)
+        ? simulatorOptions.DefaultBotModel
+        : request.Model;
+
+    var location = request.CurrentLocation
+        ?? new GeoLocation(
+            simulatorOptions.DefaultLatitude,
+            simulatorOptions.DefaultLongitude);
+
+    SimulatedBot bot;
+
+    try
+    {
+        bot = botFleet.AddBot(
+            request.BotId,
+            model,
+            location);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.Conflict(new
+        {
+            message = ex.Message
+        });
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new
+        {
+            message = ex.Message
+        });
+    }
+
+    var snapshot = bot.ToSnapshot();
+
+    var createdEvent = RobotEventEnvelope.Create(
+        RobotEventTypes.BotCreated,
+        new
+        {
+            bot = snapshot
+        },
+        snapshot.BotId);
+
+    await eventPublisher.PublishAsync(
+        createdEvent,
+        cancellationToken);
+
+    return Results.Created($"/bots/{snapshot.BotId}", snapshot);
+});
+
+app.MapPatch("/bots/{botId}", async (
+    string botId,
+    UpdateBotRequest request,
+    BotFleet botFleet,
+    IRobotEventPublisher eventPublisher,
+    CancellationToken cancellationToken) =>
+{
+    var updatedBot = botFleet.UpdateBot(botId, request);
+
+    if (updatedBot is null)
+    {
+        return Results.NotFound(new
+        {
+            message = $"Bot {botId} was not found."
+        });
+    }
+
+    var updatedEvent = RobotEventEnvelope.Create(
+        RobotEventTypes.BotUpdated,
+        new
+        {
+            bot = updatedBot
+        },
+        updatedBot.BotId);
+
+    await eventPublisher.PublishAsync(
+        updatedEvent,
+        cancellationToken);
+
+    return Results.Ok(updatedBot);
+});
+
+app.MapDelete("/bots/{botId}", async (
+    string botId,
+    BotFleet botFleet,
+    IRobotEventPublisher eventPublisher,
+    CancellationToken cancellationToken) =>
+{
+    var removed = botFleet.RemoveBot(
+        botId,
+        out var removedBot,
+        out var reason);
+
+    if (!removed)
+    {
+        if (reason == "BotNotFound")
+        {
+            return Results.NotFound(new
+            {
+                message = $"Bot {botId} was not found."
+            });
+        }
+
+        return Results.Conflict(new
+        {
+            message = $"Bot {botId} cannot be removed because it has active or queued orders.",
+            reason
+        });
+    }
+
+    var removedEvent = RobotEventEnvelope.Create(
+        RobotEventTypes.BotRemoved,
+        new
+        {
+            bot = removedBot
+        },
+        removedBot!.BotId);
+
+    await eventPublisher.PublishAsync(
+        removedEvent,
+        cancellationToken);
+
+    return Results.NoContent();
+});
+
 app.MapPost("/orders/assignments", async (
     OrderAssignment assignment,
     BotFleet botFleet,
