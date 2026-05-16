@@ -25,8 +25,8 @@ public static class RobotSimulatorInfrastructureServiceCollectionExtensions
 
         if (string.Equals(options.Mode, EventTransportModes.AzureEventHub, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException(
-                "Azure Event Hub transport is configured, but Azure Event Hub publisher has not been implemented yet.");
+            services.AddSingleton<IRobotEventPublisher, AzureRobotEventPublisher>();
+            return services;
         }
 
         throw new InvalidOperationException(
