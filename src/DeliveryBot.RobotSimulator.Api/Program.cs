@@ -20,10 +20,12 @@ builder.Services.AddSingleton(simulatorOptions);
 builder.Services.AddSingleton(simulationOptions);
 
 builder.Services.AddSingleton<BotFleet>();
+builder.Services.AddSingleton<OrderAssignmentHandler>();
 
 builder.Services.AddRobotEventTransport(builder.Configuration);
 
 builder.Services.AddHostedService<SimulationWorker>();
+builder.Services.AddHostedService<EventHubOrderAssignmentWorker>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -210,48 +212,17 @@ app.MapDelete("/bots/{botId}", async (
 
 app.MapPost("/orders/assignments", async (
     OrderAssignment assignment,
+    OrderAssignmentHandler handler,
     BotFleet botFleet,
-    IRobotEventPublisher eventPublisher,
     CancellationToken cancellationToken) =>
 {
-    if (!botFleet.TryGetBot(assignment.BotId, out var bot))
-    {
-        var notFoundResponse = new
-        {
-            assignment.OrderId,
-            assignment.BotId,
-            Result = "Rejected",
-            Reason = "BotNotFound"
-        };
-
-        var notFoundEvent = RobotEventEnvelope.Create(
-            RobotEventTypes.RobotOrderAssignmentResponse,
-            notFoundResponse,
-            assignment.BotId);
-
-        await eventPublisher.PublishAsync(
-            notFoundEvent,
-            cancellationToken);
-
-        return Results.NotFound(notFoundResponse);
-    }
-
-    var result = bot.AssignOrder(assignment);
-
-    var responseEvent = RobotEventEnvelope.Create(
-        RobotEventTypes.RobotOrderAssignmentResponse,
-        result,
-        assignment.BotId);
-
-    await eventPublisher.PublishAsync(
-        responseEvent,
+    var result = await handler.HandleAsync(
+        assignment,
         cancellationToken);
 
-    foreach (var generatedEvent in result.GeneratedEvents)
+    if (!botFleet.TryGetBot(assignment.BotId, out _))
     {
-        await eventPublisher.PublishAsync(
-            generatedEvent,
-            cancellationToken);
+        return Results.NotFound(result);
     }
 
     return Results.Ok(result);
