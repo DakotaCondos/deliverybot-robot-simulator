@@ -4,6 +4,20 @@ The DeliveryBot Robot Simulator is a .NET-based simulated robot host for testing
 
 The simulator can run locally for development and testing, inside Docker for container validation, or against Azure Event Hub for integration testing.
 
+## Context and my contribution
+
+I created this simulator for EWU DevOps coursework so classmates could connect ordering, maintenance, and other services without physical delivery robots. It ran in Azure and was later integrated with other Azure services during the class.
+
+[Project overview](https://red-wave-026ab431e.3.azurestaticapps.net/deliverybot)
+
+My reviewed contributions to the shared class system:
+
+- [Simulator, automated tests, and local/Docker/Azure validation — PR #38](https://github.com/IntelliTect-Samples/DeliveryBotSystem/pull/38)
+- [Terraform Container App module and deployment workflow — PR #78](https://github.com/IntelliTect-Samples/DeliveryBotSystem/pull/78)
+- [Event Hub-triggered bot read model, Cosmos DB integration, and tests — PR #94](https://github.com/IntelliTect-Samples/DeliveryBotSystem/pull/94)
+
+The simulator separates domain logic, event contracts, transport infrastructure, and the ASP.NET Core host. Stock reservations prevent accepted and queued orders from using the same available inventory.
+
 ## Current Capabilities
 
 - Config-driven simulator startup
